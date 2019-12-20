@@ -7,6 +7,11 @@ If this code is helpful in your research, please cite the following publication
 
 ## Initial Steps
 
+### Dataset
+
+- We use the dataset created by Zubiaga et al, 2017 which can be downloaded from [here](https://figshare.com/articles/PHEME_dataset_of_rumours_and_non-rumours/4010619). 
+
+
 ### POS TAGGING
 
 - Use [GATE Twitter Part-of-Speech Tagger](https://gate.ac.uk/wiki/twitter-postagger.html)
@@ -112,9 +117,54 @@ Configure the following output variables inside the code:
 
 - **POSTERIOR_PATH**: File where posteriors (probability vectors) for each tweet will be stored. 
 
-## Tree LSTM
+## Verified Tweet Detection using Tree LSTM
 
-Refer: https://github.com/tensorflow/fold/blob/master/tensorflow_fold/g3doc/sentiment.ipynb
+### Generating Trees
+
+Command:
+
+```
+$ python generate-trees.py
+```
+
+Configure the following input variables inside the code:
+
+- **datapath**: The original dataset folder (download from [here](https://figshare.com/articles/PHEME_dataset_of_rumours_and_non-rumours/4010619)) 
+- **feature_path**: File containing input feature vectors for all tweets in the dataset. The file contains two tab-separated columns - tweet_id, features
+- **output_path**: Path of the folder where you want the generated trees to be stored
+
+Each tree is stored as a dictionary. A sample tree and the corresponding stored dictionary is shown below:
+
+![Tree-Example](Tree-Ex.png?raw=true "Tree_Example") 
+
+```
+tree = {
+        'f': [0.234, .... , ], 'l': [0, 1], 'c': [
+            {'f': [0.109, ... , ], 'l': [0, 1], 'c': []},
+            {'f': [0.712, ... , ], 'l': [0, 1], 'c': [
+                {'f': [0.352, ... , ], 'l': [0, 1], 'c': []}
+            ]},
+        ],
+    }
+```
+
+Here, f is the input feature vector for each node of the tree, and l is the true label of the root of the tree stored as a 2-dimensional one-hot vector (dim-1: verified, dim-2: unverified). 
+
+### Training and Testing Tree-LSTM
+
+Command:
+
+```
+$ python train-Tree-LSTM.py
+```
+
+Configure the following input variables inside the code:
+
+- **tree_path**: Path to the folder containing generate trees (output_path of the last step).
+- **IN_FEATURES**: Size of the input feature vectors
+- **NUM_ITERATIONS**: Number of iterations for training
+- **BATCH_SIZE**: Batch size for training
+- **test_set**: Disaster events on which you want to test.
 
 
 ## VERISUMM
