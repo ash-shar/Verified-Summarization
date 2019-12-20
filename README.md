@@ -148,7 +148,7 @@ tree = {
     }
 ```
 
-Here, f is the input feature vector for each node of the tree, and l is the true label of the root of the tree stored as a 2-dimensional one-hot vector (dim-1: verified, dim-2: unverified). 
+Here, f is the input feature vector for each node of the tree, l is the true label of the root of the tree stored as a 2-dimensional one-hot vector (dim-1: verified, dim-2: unverified), and c is a list of children of a node. 
 
 ### Training and Testing Tree-LSTM
 
