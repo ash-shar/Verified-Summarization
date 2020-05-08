@@ -6,20 +6,35 @@ from torch.utils.data import Dataset, IterableDataset, DataLoader
 
 import os
 import codecs
+from sklearn.metrics import f1_score
+import random
+import numpy as np
+
+seed_val = 12
+
+random.seed(seed_val)
+np.random.seed(seed_val)
+torch.manual_seed(seed_val)
+torch.cuda.manual_seed_all(seed_val)
+
 
 tree_path = '../../Dataset/Parsed-Trees/'
 
-test_set = ['charliehebdo.txt'] #, 'germanwings-crash.txt', 'ottawashooting.txt', 'sydneysiege.txt']
+test_set = ['charliehebdo.txt']
+
+from random import shuffle
 
 IN_FEATURES = 40
 OUT_FEATURES = 2
-NUM_ITERATIONS = 100
-BATCH_SIZE = 8
+NUM_ITERATIONS = 10
+BATCH_SIZE = 50
+HIDDEN_UNITS = 128
+LEARNING_RATE = 0.001
 
 files = os.listdir(tree_path)
 
+
 for test_file in test_set:
-	# print('Now Testing ', test_file)
 	print('Training Set:', set(files) - {test_file})
 
 	test_trees = []
@@ -29,6 +44,8 @@ for test_file in test_set:
 		input_file = codecs.open(tree_path + filename, 'r', 'utf-8')
 
 		tree_li = []
+		pos_trees = []
+		neg_trees = []
 
 		for row in input_file:
 			s = row.strip().split('\t')
@@ -37,27 +54,36 @@ for test_file in test_set:
 			curr_tree = eval(s[1])
 
 			try:
-
-				curr_tensor = convert_tree_to_tensors(curr_tree)
-
+				curr_tensor, curr_label = convert_tree_to_tensors(curr_tree)
 			except:
 				continue
 
-			tree_li.append(curr_tensor)
+			curr_tensor['tweet_id'] = tweet_id
+
+			if curr_label == 1:
+				pos_trees.append(curr_tensor)
+			else:
+				neg_trees.append(curr_tensor)
 
 		input_file.close()
 
+
 		if filename == test_file:
+			tree_li = pos_trees + neg_trees
 			test_trees = tree_li
-		
-		train_trees += tree_li
 	
-	model = TreeLSTM(IN_FEATURES, OUT_FEATURES).train()
+		else:			
+			tree_li = pos_trees + neg_trees
 
-	# loss_function = torch.nn.CrossEntropyLoss()
-	loss_function = torch.nn.BCEWithLogitsLoss()
+			shuffle(tree_li)
 
-	optimizer = torch.optim.Adam(model.parameters())
+			train_trees += tree_li
+	
+	model = TreeLSTM(IN_FEATURES, OUT_FEATURES, HIDDEN_UNITS).train()
+
+	loss_function = torch.nn.CrossEntropyLoss()
+
+	optimizer = torch.optim.Adam(model.parameters() , lr = LEARNING_RATE)
 
 	for i in range(NUM_ITERATIONS):
 		total_loss = 0
@@ -82,16 +108,18 @@ for test_file in test_set:
 					tree_batch['edge_order'],
 					tree_batch['root_node'],
 					tree_batch['root_label']
-				)
+					)
 			except:
 				continue
 			
 			labels = tree_batch['l']
 			root_labels = tree_batch['root_label']
 
-
 			loss = loss_function(h_root, root_labels)
+
+
 			loss.backward()
+
 			optimizer.step()
 
 			total_loss += loss
@@ -104,6 +132,9 @@ for test_file in test_set:
 
 	acc = 0
 	total = 0
+
+	pred_label_li = []
+	true_label_li = []
 
 	for test in test_trees:
 		try:
@@ -120,12 +151,19 @@ for test_file in test_set:
 
 		pred_v, pred_label = torch.max(h_test_root, 1)
 
-		true_label = test['root_l'][0][1]
+		true_label = test['root_l']
 
 		if pred_label == true_label:
 			acc += 1
 
+		pred_label_li.append(pred_label)
+		true_label_li.append(true_label)
+
 		total += 1
 
-	
+	macro_f1 = f1_score(pred_label_li, true_label_li, average = 'macro')
+
+
 	print(test_file, 'accuracy:', acc / total)
+	print(test_file, 'f1:', macro_f1)
+	print(test_file, 'total tested:', total)

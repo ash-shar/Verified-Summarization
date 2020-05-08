@@ -24,7 +24,7 @@ if not os.path.exists(output_path):
 	os.makedirs(output_path)
 
 
-CUTOFF = 20
+CUTOFF = 10
 
 class Graph: 
   
@@ -98,7 +98,7 @@ def main():
 	for row in feature_file:
 		s = row.strip().split('\t')
 
-		FEATURES[s[0]] = eval(s[-1].strip())
+		FEATURES[s[0]] = eval(s[1].strip())
 
 	feature_file.close()
 
@@ -189,10 +189,10 @@ def main():
 
 				reactions.add(r_tweet_id)
 
-				LABELS[r_tweet_id.split('.')[0]] = [0, 1]
+				LABELS[r_tweet_id.split('.')[0]] = 1
 
 			dict_label[tweet_id] = 'r'
-			LABELS[tweet_id] = [0, 1]
+			LABELS[tweet_id] = 1
 
 			# print(dict_r[tweet_id])
 			# exit(-1)
@@ -255,10 +255,10 @@ def main():
 
 				reactions.add(r_tweet_id)
 
-				LABELS[r_tweet_id.split('.')[0]] = [1, 0]
+				LABELS[r_tweet_id.split('.')[0]] = 0
 
 			dict_label[tweet_id] = 'nr'
-			LABELS[tweet_id] = [1, 0]
+			LABELS[tweet_id] = 0
 
 		curr_tree = {}
 

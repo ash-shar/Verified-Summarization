@@ -10,7 +10,7 @@ import torch
 class TreeLSTM(torch.nn.Module):
 	'''PyTorch TreeLSTM model that implements efficient batching.
 	'''
-	def __init__(self, in_features, out_features):
+	def __init__(self, in_features, out_features, hidden_units):
 		'''TreeLSTM class initializer
 
 		Takes in int sizes of in_features and out_features and sets up model Linear network layers.
@@ -18,15 +18,30 @@ class TreeLSTM(torch.nn.Module):
 		super().__init__()
 		self.in_features = in_features
 		self.out_features = out_features
+		self.hidden_units = hidden_units
+
 
 		# bias terms are only on the W layers for efficiency
-		self.W_iou = torch.nn.Linear(self.in_features, 3 * self.out_features)
-		self.U_iou = torch.nn.Linear(self.out_features, 3 * self.out_features, bias=False)
+		self.W_iou = torch.nn.Linear(self.in_features, 3 * (self.hidden_units//16) * self.out_features)
+
+		self.U_iou = torch.nn.Linear((self.hidden_units//16) * self.out_features, 3 * (self.hidden_units//16) * self.out_features, bias=False)
 
 		# f terms are maintained seperate from the iou terms because they involve sums over child nodes
 		# while the iou terms do not
-		self.W_f = torch.nn.Linear(self.in_features, self.out_features)
-		self.U_f = torch.nn.Linear(self.out_features, self.out_features, bias=False)
+		self.W_f = torch.nn.Linear(self.in_features, (self.hidden_units//16) * self.out_features)
+		self.U_f = torch.nn.Linear((self.hidden_units//16) * self.out_features, (self.hidden_units//16) * self.out_features, bias=False)
+
+		self.feedforward = torch.nn.Linear((self.hidden_units//16) * self.out_features, self.out_features, bias=False)
+
+		self.init_weights()
+
+	def init_weights(self):
+		for p in self.parameters():
+			if p.data.ndimension() >= 2:
+				torch.nn.init.xavier_uniform_(p.data)
+			else:
+				torch.nn.init.zeros_(p.data)
+
 
 	def forward(self, features, node_order, adjacency_list, edge_order, root_node, root_label):
 		'''Run TreeLSTM model on a tree data structure with node features
@@ -42,9 +57,9 @@ class TreeLSTM(torch.nn.Module):
 		device = next(self.parameters()).device
 
 		# h and c states for every node in the batch
-		h = torch.zeros(batch_size, self.out_features, device=device)
+		h = torch.zeros(batch_size, (self.hidden_units//16) * self.out_features, device=device)
 		
-		c = torch.zeros(batch_size, self.out_features, device=device)
+		c = torch.zeros(batch_size, (self.hidden_units//16) * self.out_features, device=device)
 
 		# print(node_order.shape)
 
@@ -53,7 +68,7 @@ class TreeLSTM(torch.nn.Module):
 			# print(n)
 			self._run_lstm(n, h, c, features, node_order, adjacency_list, edge_order)
 
-		h_root = h[root_node, :]
+		h_root = self.feedforward(h[root_node, :])
 
 		h_root = torch.nn.functional.softmax(h_root, dim = 1)
 
@@ -79,12 +94,13 @@ class TreeLSTM(torch.nn.Module):
 
 		# print(node_mask)
 
-
 		# edge_mask is a tensor of size E x 1
 		edge_mask = edge_order == iteration
 
 		# x is a tensor of size n x F
 		x = features[node_mask, :]
+
+		# x = self.hidden_layer(x_orig)
 
 		# At iteration 0 none of the nodes should have children
 		# Otherwise, select the child nodes needed for current iteration

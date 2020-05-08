@@ -49,13 +49,11 @@ def convert_tree_to_tensors(tree, device=torch.device('cpu')):
 	features = _gather_node_attributes(tree, 'f')
 	labels = _gather_node_attributes(tree, 'l')
 
-	root_label = [labels[0]]
+	root_label = labels[0]
 
 	# print(root_label)
 
 	adjacency_list = _gather_adjacency_list(tree)
-
-	# print(adjacency_list)
 
 	node_order, edge_order = calculate_evaluation_orders(adjacency_list, len(features))
 
@@ -64,12 +62,12 @@ def convert_tree_to_tensors(tree, device=torch.device('cpu')):
 	return {
 		'f': torch.tensor(features, device=device, dtype=torch.float32),
 		'l': torch.tensor(labels, device=device, dtype=torch.float32),
-		'root_l': torch.tensor(root_label, device=device, dtype=torch.float32),
+		'root_l': torch.tensor(root_label, device=device, dtype=torch.long),
 		'root_n': torch.tensor(root_node, device=device, dtype=torch.int64),
 		'node_order': torch.tensor(node_order, device=device, dtype=torch.int64),
 		'adjacency_list': torch.tensor(adjacency_list, device=device, dtype=torch.int64),
 		'edge_order': torch.tensor(edge_order, device=device, dtype=torch.int64),
-	}
+	}, root_label
 
 def calculate_evaluation_orders(adjacency_list, tree_size):
     '''Calculates the node_order and edge_order from a tree adjacency_list and the tree_size.
@@ -84,6 +82,8 @@ def calculate_evaluation_orders(adjacency_list, tree_size):
 
     node_order = numpy.zeros(tree_size, dtype=int)
     unevaluated_nodes = numpy.ones(tree_size, dtype=bool)
+
+    # print(adjacency_list)
 
     parent_nodes = adjacency_list[:, 0]
     child_nodes = adjacency_list[:, 1]
@@ -134,7 +134,7 @@ def batch_tree_input(batch):
 
     batched_labels = torch.cat([b['l'] for b in batch])
 
-    batched_root_labels = torch.cat([b['root_l'] for b in batch])
+    batched_root_labels = torch.tensor([b['root_l'] for b in batch])
 
     batched_adjacency_list = []
     offset = 0
