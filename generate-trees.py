@@ -11,7 +11,7 @@ import pickle
 
 datapath = "../../Dataset/pheme-rnr-dataset/"
 
-feature_path = "../../Dataset/Features/tweet-posteriors.txt"
+feature_path = "../../Dataset/All_Tweets_En/all_tweets_en_posteriors.txt"
 
 output_path = "../../Dataset/Parsed-Trees/"
 
@@ -98,7 +98,7 @@ def main():
 	for row in feature_file:
 		s = row.strip().split('\t')
 
-		FEATURES[s[0]] = eval(s[1].strip())
+		FEATURES[s[1]] = eval(s[2].strip())
 
 	feature_file.close()
 
